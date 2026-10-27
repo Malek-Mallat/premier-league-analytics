@@ -1,0 +1,352 @@
+<title>Premier League Analytics</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  /* Layout: broadcast-style header → KPI strip with league rank → segmented tabs → chart grid.
+     Type: Archivo (display) · IBM Plex Sans (body) · IBM Plex Mono (figures). PL purple identity. */
+  :root{
+    --bg:#EBE8F0; --surface:#FFFFFF; --surface-2:#F5F2F9; --surface-3:#EFEBF4;
+    --ink:#190F20; --muted:#6C6177; --faint:#9A8FA6; --line:#E4DEEC;
+    --purple:#2E0633; --purple-soft:#7A3C8A; --accent:#009D5C; --accent-soft:#E0F4EB; --accent-ink:#06603A;
+    --pink:#CE1C66; --cyan:#0B7C86; --amber:#B5790B; --bad:#C4324F;
+    --grid:rgba(46,6,51,.08); --shadow:0 1px 2px rgba(46,6,51,.04),0 8px 24px -16px rgba(46,6,51,.18);
+    color-scheme:light;
+  }
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+    --bg:#100A15; --surface:#1B1422; --surface-2:#231A2C; --surface-3:#2A2034;
+    --ink:#F2ECF7; --muted:#A295AE; --faint:#7D7089; --line:#2E2439;
+    --purple:#E3B6EE; --purple-soft:#B682C6; --accent:#2BDC8C; --accent-soft:#123A2A; --accent-ink:#8DF0C4;
+    --pink:#F175A6; --cyan:#45CDD8; --amber:#EFB84E; --bad:#F2708A;
+    --grid:rgba(255,255,255,.08); --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px -18px rgba(0,0,0,.6);
+    color-scheme:dark;
+  }}
+  :root[data-theme="dark"]{
+    --bg:#100A15; --surface:#1B1422; --surface-2:#231A2C; --surface-3:#2A2034;
+    --ink:#F2ECF7; --muted:#A295AE; --faint:#7D7089; --line:#2E2439;
+    --purple:#E3B6EE; --purple-soft:#B682C6; --accent:#2BDC8C; --accent-soft:#123A2A; --accent-ink:#8DF0C4;
+    --pink:#F175A6; --cyan:#45CDD8; --amber:#EFB84E; --bad:#F2708A;
+    --grid:rgba(255,255,255,.08); --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px -18px rgba(0,0,0,.6);
+    color-scheme:dark;
+  }
+  *{box-sizing:border-box}
+  [hidden]{display:none!important}
+  html,body{margin:0}
+  body{background:var(--bg);color:var(--ink);line-height:1.5;
+    font-family:"IBM Plex Sans",system-ui,-apple-system,sans-serif;
+    -webkit-font-smoothing:antialiased}
+  h1,h2,h3{margin:0;font-family:"Archivo","IBM Plex Sans",sans-serif;text-wrap:balance}
+  .mono{font-family:"IBM Plex Mono","IBM Plex Sans",monospace;font-variant-numeric:tabular-nums}
+
+  /* ── header ── */
+  body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--purple);z-index:20}
+  .top{position:sticky;top:env(safe-area-inset-top,0px);z-index:15;background:var(--purple);
+    border-bottom:1px solid rgba(255,255,255,.08)}
+  .top-in{max-width:1200px;margin:0 auto;display:flex;flex-wrap:wrap;align-items:center;gap:14px 22px;
+    padding-block:18px;padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px))}
+  .brand{display:flex;align-items:center;gap:13px;min-width:0}
+  .crest{width:44px;height:44px;border-radius:11px;background:#fff;display:grid;place-items:center;flex:none;
+    box-shadow:0 2px 10px rgba(0,0,0,.25)}
+  .crest span{font-family:"Archivo";font-weight:800;font-size:19px;color:#2E0633;line-height:1;letter-spacing:-.5px}
+  .brand h1{color:#fff;font-size:27px;font-weight:700;line-height:1.02;letter-spacing:-.4px}
+  .brand p{margin:3px 0 0;color:#D9B3E3;font-size:11.5px;letter-spacing:1.4px;text-transform:uppercase;font-weight:500}
+  .filter{margin-left:auto;display:flex;align-items:center;gap:9px}
+  .filter label{color:#D9B3E3;font-size:11px;text-transform:uppercase;letter-spacing:1px;font-weight:600}
+  .selwrap{position:relative}
+  select{appearance:none;font:inherit;font-weight:500;font-size:14px;color:var(--ink);background:var(--surface);
+    border:1px solid rgba(255,255,255,.22);border-radius:10px;padding:9px 34px 9px 13px;cursor:pointer;max-width:220px;box-shadow:0 2px 8px rgba(0,0,0,.18)}
+  .selwrap::after{content:"";position:absolute;right:13px;top:50%;width:7px;height:7px;border-right:2px solid var(--muted);
+    border-bottom:2px solid var(--muted);transform:translateY(-70%) rotate(45deg);pointer-events:none}
+
+  .wrap{max-width:1200px;margin:0 auto;
+    padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px));
+    padding-block:22px 44px}
+
+  /* ── KPI strip ── */
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:13px}
+  .kpi{background:var(--surface);border:1px solid var(--line);border-radius:15px;padding:15px 17px;box-shadow:var(--shadow);
+    display:flex;flex-direction:column;gap:2px}
+  .kpi .lab{font-size:10.5px;text-transform:uppercase;letter-spacing:.9px;color:var(--faint);font-weight:600}
+  .kpi .val{font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:33px;line-height:1.08;letter-spacing:-1px;margin-top:5px;font-variant-numeric:tabular-nums}
+  .kpi .sub{font-size:12px;color:var(--muted);margin-top:3px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+  .kpi.good .val{color:var(--accent)} .kpi.bad .val{color:var(--bad)}
+  .rankpill{font-family:"IBM Plex Mono",monospace;font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:999px;
+    background:var(--surface-3);color:var(--muted);white-space:nowrap}
+  .rankpill.top{background:var(--accent-soft);color:var(--accent-ink)}
+
+  /* ── tabs (segmented) ── */
+  .tabs{display:inline-flex;gap:3px;margin:26px 0 6px;background:var(--surface-2);border:1px solid var(--line);
+    border-radius:12px;padding:4px;box-shadow:var(--shadow)}
+  .tab{font:inherit;font-weight:600;font-size:13.5px;color:var(--muted);background:transparent;border:0;
+    border-radius:8px;padding:8px 18px;cursor:pointer;transition:.15s;white-space:nowrap}
+  .tab[aria-selected="true"]{background:var(--purple);color:#fff}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .tab[aria-selected="true"]{color:#190F20}}
+  :root[data-theme="dark"] .tab[aria-selected="true"]{color:#190F20}
+  .tab:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .tabnote{font-size:12.5px;color:var(--faint);margin:10px 0 18px;letter-spacing:.2px}
+
+  .charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:17px}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:18px 18px 12px;min-width:0;box-shadow:var(--shadow)}
+  .card.wide{grid-column:1/-1}
+  .card h3{font-size:18px;font-weight:700;letter-spacing:-.2px}
+  .card .cap{font-size:12.5px;color:var(--muted);margin:4px 0 14px;line-height:1.45}
+  .cbox{position:relative;height:300px}
+  .cbox.tall{height:368px}
+  .empty{display:grid;place-items:center;height:100%;color:var(--faint);font-size:13.5px;text-align:center;padding:20px}
+
+  .insight{display:flex;gap:11px;align-items:flex-start;background:var(--accent-soft);border-radius:12px;
+    padding:13px 15px;margin-top:15px;font-size:13.5px;line-height:1.5;color:var(--ink)}
+  .insight b{color:var(--accent-ink);font-weight:600}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--accent);margin-top:6px;flex:none}
+
+  footer{max-width:1200px;margin:0 auto;color:var(--faint);font-size:11.5px;line-height:1.6;
+    padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px));
+    padding-block:24px 12px;margin-top:30px;border-top:1px solid var(--line)}
+  footer b{color:var(--muted);font-weight:600}
+  footer code{font-family:"IBM Plex Mono",monospace;font-size:11px;background:var(--surface-2);padding:1px 5px;border-radius:5px}
+  @media (max-width:540px){ .brand h1{font-size:22px} .filter{margin-left:0;width:100%} .selwrap{flex:1} select{max-width:none;width:100%}
+    .tabs{width:100%;justify-content:space-between} .tab{flex:1;padding:8px 6px} }
+</style>
+
+<div class="top">
+  <div class="top-in">
+    <div class="brand">
+      <div class="crest"><span>PL</span></div>
+      <div>
+        <h1>Premier League Analytics</h1>
+        <p>Saison 2024&#8211;25 &middot; Football Analytics BI</p>
+      </div>
+    </div>
+    <div class="filter">
+      <label for="team">Équipe</label>
+      <div class="selwrap"><select id="team"></select></div>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="kpis" id="kpis"></div>
+
+  <div class="tabs" role="tablist" aria-label="Sujets">
+    <button class="tab" role="tab" aria-selected="true"  data-tab="res">Résultats</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="jeu">Qualité de jeu</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="pro">Profil &amp; style</button>
+  </div>
+  <p class="tabnote" id="tabnote"></p>
+
+  <section id="res" class="charts"></section>
+  <section id="jeu" class="charts" hidden></section>
+  <section id="pro" class="charts" hidden></section>
+</div>
+
+<footer>
+  <b>Pipeline</b> &nbsp;API-Football &rarr; scripts Python (extraction + agrégation) &rarr; <code>data.json</code> &rarr; cette page (Chart.js).
+  Saison 2024&#8211;25, 380 matchs. Résultats issus du classement officiel&nbsp;; mesures de jeu (possession, xG, tirs,
+  discipline) agrégées depuis les statistiques détaillées de chaque match.
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+/* ---- Données réelles du projet. Le script Python build_data.py régénère ce bloc depuis les JSON bruts. ---- */
+const RAW = [
+  ["Liverpool","LIV",84,86,41,25,9,4,57.95,17,2.19,35.6,13.32],
+  ["Arsenal","ARS",74,69,34,20,14,4,56.97,14,1.62,34.4,12.87],
+  ["Manchester City","MCI",71,72,44,21,8,9,61.5,16,1.81,35.7,9.25],
+  ["Chelsea","CHE",69,64,43,20,9,9,57.18,16,1.82,36.6,14.28],
+  ["Newcastle","NEW",66,68,47,20,6,12,51.13,14,1.72,33.3,12.25],
+  ["Aston Villa","AST",66,58,51,19,9,10,50.61,13,1.51,35.1,13.01],
+  ["Nottingham Forest","NOT",65,58,46,19,8,11,40.89,12,1.22,35.9,13.07],
+  ["Brighton","BRI",61,66,59,16,13,9,52.55,14,1.56,35.8,13.82],
+  ["Bournemouth","BOU",56,58,46,15,11,12,48.58,15,1.71,34.8,16.61],
+  ["Brentford","BRE",56,66,57,16,8,14,47.74,12,1.58,41.7,10.14],
+  ["Fulham","FUL",54,54,54,15,9,14,52.37,14,1.3,33.3,13.63],
+  ["Crystal Palace","CRY",53,51,51,13,14,11,42.53,14,1.62,36.0,13.41],
+  ["Everton","EVE",48,42,44,11,15,12,40.61,11,1.11,35.5,13.63],
+  ["West Ham","WES",43,46,62,11,10,17,48.63,13,1.26,30.7,14.06],
+  ["Manchester United","MUN",42,44,54,11,9,18,53.55,14,1.4,33.0,13.11],
+  ["Wolves","WOL",42,54,69,12,6,20,48.08,11,1.17,37.1,14.86],
+  ["Tottenham","TOT",38,64,65,11,5,22,54.82,13,1.57,37.2,13.72],
+  ["Leicester","LEI",25,33,80,6,7,25,45.37,9,0.86,33.1,13.34],
+  ["Ipswich","IPS",22,36,82,4,10,24,40.29,10,0.91,33.8,14.13],
+  ["Southampton","SOU",12,26,86,2,6,30,48.66,9,0.87,32.4,14.66],
+];
+const K=["name","short","pts","bm","be","v","n","d","poss","tirs","xg","prec","disc"];
+const TEAMS=RAW.map(r=>{const o={};K.forEach((k,i)=>o[k]=r[i]);o.taux=o.v/38;o.diff=o.bm-o.be;return o;});
+TEAMS.forEach((t,i)=>t.rank=i+1);
+const byPts=[...TEAMS];
+
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+let PURPLE,ACCENT,PINK,WARN,MUTED,GRID,INK;
+function readColors(){PURPLE=css('--purple');ACCENT=css('--accent');PINK=css('--pink');WARN=css('--amber');
+  MUTED=css('--muted');GRID=css('--grid');INK=css('--ink');}
+const hexA=(h,a)=>{h=h.replace('#','');if(h.length===3)h=h.split('').map(c=>c+c).join('');
+  return `rgba(${parseInt(h.slice(0,2),16)},${parseInt(h.slice(2,4),16)},${parseInt(h.slice(4,6),16)},${a})`;};
+
+let STATE={team:"ALL",tab:"res"};
+let charts=[];
+const fmt1=x=>x==null?"—":x.toFixed(1);
+const nf=new Intl.NumberFormat('fr-FR');
+const ord=n=>n===1?"1ᵉʳ":n+"ᵉ";
+function rankOf(t,key,better="hi"){
+  const arr=[...TEAMS].filter(x=>x[key]!=null).sort((a,b)=>better==="hi"?b[key]-a[key]:a[key]-b[key]);
+  const i=arr.findIndex(x=>x.name===t.name); return i<0?null:{r:i+1,n:arr.length};
+}
+function rankPill(rk){ if(!rk)return"";
+  const top=rk.r<=4?" top":""; return `<span class="rankpill${top}">${ord(rk.r)} / ${rk.n}</span>`; }
+
+/* ---------- select ---------- */
+const sel=document.getElementById('team');
+sel.insertAdjacentHTML('beforeend','<option value="ALL">Toutes les équipes</option>');
+[...TEAMS].sort((a,b)=>a.name.localeCompare(b.name)).forEach(t=>
+  sel.insertAdjacentHTML('beforeend',`<option value="${t.name}">${t.name}</option>`));
+sel.addEventListener('change',()=>{STATE.team=sel.value;render();});
+
+/* ---------- KPIs ---------- */
+function kpiTile(lab,val,sub,cls=""){return `<div class="kpi ${cls}"><div class="lab">${lab}</div>
+  <div class="val">${val}</div><div class="sub">${sub||""}</div></div>`;}
+function renderKPIs(){
+  const box=document.getElementById('kpis');
+  if(STATE.team==="ALL"){
+    const totBM=TEAMS.reduce((s,t)=>s+t.bm,0);
+    const best=byPts[0], topAtt=[...TEAMS].sort((a,b)=>b.bm-a.bm)[0], bestDef=[...TEAMS].sort((a,b)=>a.be-b.be)[0];
+    const xgArr=TEAMS.filter(t=>t.xg!=null), xgAvg=xgArr.reduce((s,t)=>s+t.xg,0)/xgArr.length;
+    box.innerHTML=[
+      kpiTile("Buts dans la ligue",nf.format(totBM),"380 matchs joués"),
+      kpiTile("Buts par match",(totBM/380).toFixed(2),"les deux équipes"),
+      kpiTile("Champion",best.short,`${best.name} · ${best.pts} pts`,"good"),
+      kpiTile("Meilleure attaque",topAtt.bm,`${topAtt.name} · buts marqués`),
+      kpiTile("Meilleure défense",bestDef.be,`${bestDef.name} · buts encaissés`,"good"),
+      kpiTile("xG moyen / match",xgAvg.toFixed(2),"qualité des occasions"),
+    ].join("");
+  }else{
+    const t=TEAMS.find(x=>x.name===STATE.team);
+    box.innerHTML=[
+      kpiTile("Classement",ord(t.rank),`${t.pts} points · V${t.v} N${t.n} D${t.d}`),
+      kpiTile("Buts marqués",t.bm,`${rankPill(rankOf(t,'bm','hi'))} ${(t.bm/38).toFixed(2)}/match`,"good"),
+      kpiTile("Buts encaissés",t.be,`${rankPill(rankOf(t,'be','lo'))} diff. ${t.diff>0?"+":""}${t.diff}`,t.diff<0?"bad":""),
+      kpiTile("Possession",t.poss==null?"—":t.poss.toFixed(0)+"%",rankPill(rankOf(t,'poss','hi'))),
+      kpiTile("xG / match",fmt1(t.xg),`${rankPill(rankOf(t,'xg','hi'))} buts attendus`),
+      kpiTile("Discipline",fmt1(t.disc),`${rankPill(rankOf(t,'disc','lo'))} indice`),
+    ].join("");
+  }
+}
+
+/* ---------- charts ---------- */
+function clearCharts(){charts.forEach(c=>c.destroy());charts=[];}
+function barColor(list){return list.map(t=>{
+  if(STATE.team!=="ALL") return t.name===STATE.team?ACCENT:hexA(PURPLE,.26);
+  return hexA(PURPLE,.72);});}
+function mkBar(ctx,labels,data,color,fmt,xlab){
+  return new Chart(ctx,{type:'bar',data:{labels,datasets:[{data,backgroundColor:color,borderRadius:5,
+    borderSkipped:false,maxBarThickness:20}]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,animation:{duration:450},
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>(fmt?fmt(c.parsed.x):c.parsed.x)}}},
+      scales:{x:{grid:{color:GRID,drawBorder:false},ticks:{color:MUTED,font:{family:'IBM Plex Mono',size:10.5}},title:{display:!!xlab,text:xlab,color:MUTED,font:{size:11}}},
+        y:{grid:{display:false,drawBorder:false},ticks:{color:INK,font:{family:'IBM Plex Mono',size:11,weight:'500'}}}}}});
+}
+function mkScatter(ctx,pts,xlab,ylab,xrev,fmt){
+  const data=pts.map(p=>({x:p.x,y:p.y,t:p.t,r:p.r||7,sel:p.sel}));
+  return new Chart(ctx,{type:'scatter',data:{datasets:[{data,
+      pointRadius:data.map(d=>d.sel?10:d.r),pointHoverRadius:data.map(d=>d.sel?13:10),
+      backgroundColor:data.map(d=>d.sel?ACCENT:hexA(PURPLE,.5)),
+      borderColor:data.map(d=>d.sel?css('--accent-ink'):'transparent'),borderWidth:2}]},
+    options:{responsive:true,maintainAspectRatio:false,animation:{duration:450},
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>{const d=c.raw;return `${d.t}: ${fmt?fmt(d):(d.x+', '+d.y)}`;}}}},
+      scales:{x:{reverse:!!xrev,grid:{color:GRID,drawBorder:false},ticks:{color:MUTED,font:{family:'IBM Plex Mono',size:10.5}},title:{display:true,text:xlab,color:MUTED,font:{size:11.5}}},
+        y:{grid:{color:GRID,drawBorder:false},ticks:{color:MUTED,font:{family:'IBM Plex Mono',size:10.5}},title:{display:true,text:ylab,color:MUTED,font:{size:11.5}}}}}});
+}
+const card=h=>`<div class="card">${h}</div>`;
+const cardWide=h=>`<div class="card wide">${h}</div>`;
+
+function renderRes(){
+  const el=document.getElementById('res');
+  el.innerHTML =
+    cardWide(`<h3>Classement — points</h3><p class="cap">Saison complète. ${STATE.team!=="ALL"?"Votre équipe est mise en avant.":"Sélectionnez une équipe pour la situer."}</p><div class="cbox tall"><canvas id="c_rank"></canvas></div>`)
+    + card(`<h3>Attaque vs défense</h3><p class="cap">Chaque point = une équipe. En bas à droite = marque beaucoup, encaisse peu.</p><div class="cbox"><canvas id="c_ad"></canvas></div>`)
+    + card(`<h3>Buts marqués &amp; encaissés</h3><p class="cap">Comparaison directe, trié par buts marqués.</p><div class="cbox"><canvas id="c_goals"></canvas></div>`);
+  const sorted=[...byPts];
+  charts.push(mkBar(document.getElementById('c_rank'),sorted.map(t=>t.short),sorted.map(t=>t.pts),barColor(sorted),v=>v+" pts","Points"));
+  charts.push(mkScatter(document.getElementById('c_ad'),
+    TEAMS.map(t=>({x:t.be,y:t.bm,t:t.name,r:6+t.v/4,sel:t.name===STATE.team})),
+    "Buts encaissés (→ meilleure défense)","Buts marqués",true,d=>`${d.y} marqués / ${d.x} encaissés`));
+  const ga=[...TEAMS].sort((a,b)=>b.bm-a.bm);
+  charts.push(new Chart(document.getElementById('c_goals'),{type:'bar',data:{labels:ga.map(t=>t.short),
+    datasets:[{label:'Marqués',data:ga.map(t=>t.bm),backgroundColor:hexA(ACCENT,.85),borderRadius:4,maxBarThickness:15},
+      {label:'Encaissés',data:ga.map(t=>t.be),backgroundColor:hexA(PINK,.8),borderRadius:4,maxBarThickness:15}]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:INK,boxWidth:11,font:{size:11.5}}}},
+      scales:{x:{grid:{color:GRID,drawBorder:false},ticks:{color:MUTED,font:{family:'IBM Plex Mono',size:10}}},
+        y:{grid:{display:false,drawBorder:false},ticks:{color:INK,font:{family:'IBM Plex Mono',size:10}}}}}}));
+}
+
+function renderJeu(){
+  const el=document.getElementById('jeu');
+  el.innerHTML =
+    card(`<h3>Possession vs xG</h3><p class="cap">Garder le ballon crée-t-il des occasions ? (xG = buts attendus)</p><div class="cbox"><canvas id="c_px"></canvas></div>`)
+    + card(`<h3>xG par match</h3><p class="cap">Qualité moyenne des occasions créées.</p><div class="cbox"><canvas id="c_xg"></canvas></div>`)
+    + card(`<h3>Précision des tirs</h3><p class="cap">Tirs cadrés ÷ tirs totaux.</p><div class="cbox"><canvas id="c_prec"></canvas></div>`)
+    + card(`<h3>Tirs par match</h3><p class="cap">Volume offensif moyen.</p><div class="cbox"><canvas id="c_tirs"></canvas></div>`);
+  const q=TEAMS.filter(t=>t.xg!=null);
+  charts.push(mkScatter(document.getElementById('c_px'),
+    q.map(t=>({x:t.poss,y:t.xg,t:t.name,r:7,sel:t.name===STATE.team})),
+    "Possession moyenne (%)","xG par match",false,d=>`${d.y} xG · ${d.x}% poss.`));
+  const xg=[...q].sort((a,b)=>b.xg-a.xg);
+  charts.push(mkBar(document.getElementById('c_xg'),xg.map(t=>t.short),xg.map(t=>t.xg),barColor(xg),v=>v.toFixed(2)+" xG"));
+  const pr=[...q].sort((a,b)=>b.prec-a.prec);
+  charts.push(mkBar(document.getElementById('c_prec'),pr.map(t=>t.short),pr.map(t=>t.prec),barColor(pr),v=>v.toFixed(1)+"%"));
+  const ti=[...q].sort((a,b)=>b.tirs-a.tirs);
+  charts.push(mkBar(document.getElementById('c_tirs'),ti.map(t=>t.short),ti.map(t=>t.tirs),barColor(ti),v=>v+" tirs"));
+}
+
+function renderPro(){
+  const el=document.getElementById('pro');
+  const q=TEAMS.filter(t=>t.disc!=null);
+  const radarHtml = STATE.team==="ALL"
+    ? `<h3>Profil d'une équipe</h3><p class="cap">Radar sur 5 axes, normalisé vs la ligue.</p><div class="cbox tall"><div class="empty">Sélectionnez une équipe dans le filtre en haut&nbsp;↑<br>pour afficher son profil.</div></div>`
+    : `<h3>Profil — ${STATE.team}</h3><p class="cap">Score 0–100 relatif à la ligue (100 = meilleur). Plus loin du centre = meilleur.</p><div class="cbox tall"><canvas id="c_radar"></canvas></div>`;
+  el.innerHTML =
+    card(radarHtml)
+    + card(`<h3>Indice de discipline</h3><p class="cap">Fautes + jaunes + 3×rouges, par match. Plus bas = plus discipliné.</p><div class="cbox"><canvas id="c_disc"></canvas></div>`)
+    + cardWide(`<h3>Discipline vs possession</h3><p class="cap">Les équipes qui gardent le ballon fautent-elles moins ?</p><div class="cbox"><canvas id="c_dp"></canvas></div>
+       <div class="insight"><span class="dot"></span><div>Manchester City, l'équipe à plus forte possession (62%), affiche <b>l'indice de discipline le plus bas</b> de la ligue. La discipline est une conséquence de la domination, pas une cause de la victoire.</div></div>`);
+  const dc=[...q].sort((a,b)=>a.disc-b.disc);
+  charts.push(mkBar(document.getElementById('c_disc'),dc.map(t=>t.short),dc.map(t=>t.disc),
+    dc.map(t=>STATE.team!=="ALL"?(t.name===STATE.team?ACCENT:hexA(PURPLE,.26)):hexA(PURPLE,.72)),v=>v.toFixed(2)));
+  charts.push(mkScatter(document.getElementById('c_dp'),
+    q.map(t=>({x:t.poss,y:t.disc,t:t.name,r:7,sel:t.name===STATE.team})),
+    "Possession moyenne (%)","Indice de discipline",false,d=>`${d.t}: ${d.y} · ${d.x}% poss.`));
+  if(STATE.team!=="ALL"){
+    const t=TEAMS.find(x=>x.name===STATE.team);
+    const norm=(key,val,inv)=>{const arr=q.map(z=>z[key]);const mn=Math.min(...arr),mx=Math.max(...arr);
+      if(val==null||mx===mn)return 50;let s=(val-mn)/(mx-mn)*100;return inv?100-s:s;};
+    const axes=["Attaque","Solidité déf.","Possession","Création (xG)","Discipline"];
+    const vals=[norm('bm',t.bm),norm('be',t.be,true),norm('poss',t.poss),norm('xg',t.xg),norm('disc',t.disc,true)];
+    charts.push(new Chart(document.getElementById('c_radar'),{type:'radar',
+      data:{labels:axes,datasets:[{data:vals,label:t.name,backgroundColor:hexA(ACCENT,.2),borderColor:ACCENT,borderWidth:2,
+        pointBackgroundColor:ACCENT,pointRadius:4,pointHoverRadius:6}]},
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.label+": "+Math.round(c.parsed.r)+"/100"}}},
+        scales:{r:{min:0,max:100,angleLines:{color:GRID},grid:{color:GRID},
+          pointLabels:{color:INK,font:{family:'IBM Plex Sans',size:12,weight:'500'}},ticks:{display:false,stepSize:25}}}}}));
+  }
+}
+
+const NOTES={res:"Résultats : saison complète, 380 matchs.",
+  jeu:"Mesures de jeu agrégées depuis les statistiques détaillées des matchs.",
+  pro:"Sélectionnez une équipe en haut pour afficher son radar sur 5 axes."};
+function render(){
+  readColors(); clearCharts(); renderKPIs();
+  document.getElementById('tabnote').textContent=NOTES[STATE.tab];
+  ['res','jeu','pro'].forEach(id=>document.getElementById(id).hidden=(id!==STATE.tab));
+  requestAnimationFrame(()=>{
+    if(STATE.tab==='res')renderRes(); else if(STATE.tab==='jeu')renderJeu(); else renderPro();
+  });
+}
+document.querySelectorAll('.tab').forEach(btn=>btn.addEventListener('click',()=>{
+  document.querySelectorAll('.tab').forEach(b=>b.setAttribute('aria-selected',b===btn));
+  STATE.tab=btn.dataset.tab; render();
+}));
+Chart.defaults.font.family="IBM Plex Sans, sans-serif";
+render();
+window.matchMedia('(prefers-color-scheme:dark)').addEventListener?.('change',()=>render());
+</script>
