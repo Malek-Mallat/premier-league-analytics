@@ -1,0 +1,20 @@
+# Secrets — ne JAMAIS pousser la clé API
+.env
+
+# Données brutes de l'API (volumineuses ; régénérables via les scripts)
+data/raw/
+data/dashboard_data.json
+
+# Power BI (fichier lourd)
+*.pbix
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# OS / éditeur
+.DS_Store
+Thumbs.db
+.vscode/
