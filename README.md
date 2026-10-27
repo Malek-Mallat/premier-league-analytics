@@ -5,7 +5,7 @@ built from a live REST API all the way to an interactive web dashboard.
 
 **🔗 Live dashboard:** _(add your GitHub Pages link here once published)_
 
-![Premier League Analytics dashboard](docs/preview.png)
+[![Premier League Analytics dashboard](docs/preview.png)](https://malek-mallat.github.io/premier-league-analytics/)
 
 ---
 
